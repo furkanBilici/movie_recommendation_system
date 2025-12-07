@@ -1,0 +1,272 @@
+/* frontend/src/App.css */
+
+.App {
+  text-align: center;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background-color: #f4f4f4;
+  min-height: 100vh;
+}
+
+.App-header {
+  background-color: #282c34;
+  padding: 20px;
+  color: white;
+  margin-bottom: 30px;
+  border-radius: 8px;
+}
+
+.controls {
+  margin-bottom: 30px;
+  display: flex;
+  justify-content: center;
+  gap: 20px;
+  flex-wrap: wrap;
+}
+
+.search-form {
+  display: flex;
+  gap: 10px;
+}
+
+input[type="text"] {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  width: 250px;
+}
+
+button {
+  padding: 10px 15px;
+  background-color: #61dafb;
+  color: #282c34;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+  font-weight: bold;
+}
+
+button:hover {
+  background-color: #21a1f1;
+}
+
+.genre-select {
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+  min-width: 150px;
+}
+
+.movie-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
+  gap: 20px;
+  max-width: 1200px;
+  margin: 0 auto;
+}
+
+.movie-card {
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-align: center;
+  transition: transform 0.2s;
+}
+
+.movie-card:hover {
+  transform: translateY(-5px);
+}
+
+.movie-card img {
+  max-width: 100%;
+  height: 300px; /* Sabit yükseklik */
+  object-fit: cover; /* Resmin kutuya sığmasını sağla */
+  border-radius: 4px;
+  margin-bottom: 10px;
+}
+
+.movie-card h2 {
+  font-size: 1.2em;
+  margin: 10px 0;
+  color: #333;
+}
+
+.movie-card p {
+  font-size: 0.9em;
+  color: #666;
+  margin-bottom: 5px;
+}
+
+.movie-card .release-date {
+  font-size: 0.8em;
+  color: #888;
+  margin-top: auto; /* Altta hizala */
+}
+
+.no-image {
+  width: 100%;
+  height: 300px;
+  background-color: #eee;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: #999;
+  border-radius: 4px;
+  margin-bottom: 10px;
+  font-size: 0.9em;
+}
+
+.error-message {
+  color: red;
+  font-weight: bold;
+  margin-top: 20px;
+}
+
+@media (max-width: 768px) {
+  .controls {
+    flex-direction: column;
+    align-items: center;
+  }
+  input[type="text"] {
+    width: 100%;
+  }
+  .search-form {
+    width: 100%;
+    justify-content: center;
+  }
+  .genre-select {
+    width: 100%;
+  }
+}
+/* frontend/src/App.css */
+
+/* Mevcut stillerinizin üzerine veya altına ekleyebilirsiniz */
+
+.main-content {
+  display: flex;
+  gap: 30px;
+  max-width: 1400px; /* Genişliği artırdık */
+  margin: 0 auto;
+  align-items: flex-start; /* Üstten başlasın */
+}
+
+.movie-section {
+  flex: 3; /* Film listesi daha geniş olsun */
+  display: flex;
+  flex-direction: column;
+}
+
+.chatbot-section {
+  flex: 1; /* Chatbot daha dar olsun */
+  background-color: white;
+  border-radius: 8px;
+  box-shadow: 0 4px 8px rgba(0, 0, 0, 0.1);
+  padding: 15px;
+  height: 700px; /* Sabit bir yükseklik verdik */
+  display: flex;
+  flex-direction: column;
+}
+
+.chat-window {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.chat-messages {
+  flex-grow: 1; /* Mesaj alanı kalan alanı doldursun */
+  overflow-y: auto; /* Scroll edilebilir olsun */
+  border: 1px solid #eee;
+  border-radius: 4px;
+  padding: 10px;
+  margin-bottom: 10px;
+  background-color: #f9f9f9;
+}
+
+.chat-message {
+  margin-bottom: 8px;
+  padding: 8px 12px;
+  border-radius: 15px;
+  max-width: 80%;
+  word-wrap: break-word; /* Uzun kelimeleri böler */
+}
+
+.chat-message.user {
+  background-color: #61dafb;
+  color: #282c34;
+  align-self: flex-end; /* Sağda hizala */
+  margin-left: auto;
+  text-align: right;
+}
+
+.chat-message.bot {
+  background-color: #e2e6ea;
+  color: #333;
+  align-self: flex-start; /* Solda hizala */
+  margin-right: auto;
+  text-align: left;
+}
+
+.chat-message.bot.loading {
+  font-style: italic;
+  color: #777;
+}
+
+.sender-label {
+  font-weight: bold;
+  margin-right: 5px;
+}
+
+.welcome-message {
+  text-align: center;
+  color: #777;
+  padding: 20px;
+  font-style: italic;
+}
+
+.chat-input-form {
+  display: flex;
+  gap: 10px;
+  margin-top: auto; /* En alta hizala */
+}
+
+.chat-input-form input {
+  flex-grow: 1;
+  padding: 10px;
+  border: 1px solid #ccc;
+  border-radius: 4px;
+}
+
+.chat-input-form button {
+  padding: 10px 15px;
+  background-color: #282c34;
+  color: white;
+  border: none;
+  border-radius: 4px;
+  cursor: pointer;
+}
+
+.chat-input-form button:disabled {
+    background-color: #cccccc;
+    cursor: not-allowed;
+}
+
+
+/* Mevcut responsive stillerinizi de güncelleyelim */
+@media (max-width: 1024px) { /* Tablet boyutları için */
+  .main-content {
+    flex-direction: column;
+    align-items: center;
+  }
+  .movie-section {
+    width: 100%;
+  }
+  .chatbot-section {
+    width: 100%;
+    height: 500px; /* Daha az yer kaplasın */
+  }
+}
