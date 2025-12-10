@@ -1,72 +1,98 @@
 import os
-from flask import Flask, jsonify, request
+import json
 import requests
+import concurrent.futures
+from flask import Flask, jsonify, request
 from dotenv import load_dotenv
 from flask_cors import CORS
-import google.generativeai as genai # Gemini kütüphanesini import et
-
+import google.generativeai as genai
 
 # .env dosyasındaki ortam değişkenlerini yükle
 load_dotenv()
 
 app = Flask(__name__)
-CORS(app) # CORS'u tüm rotalar için etkinleştir
+CORS(app)
 
 TMDB_API_KEY = os.getenv("TMDB_API_KEY")
-GEMINI_API_KEY = os.getenv("GEMINI_API_KEY") # Gemini API anahtarını al
+GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
-# Gemini modelini yapılandır
+# --- GEMINI AYARLARI ---
+# Kütüphaneyi yapılandırıyoruz
 genai.configure(api_key=GEMINI_API_KEY)
-model = genai.GenerativeModel('gemini-pro') # Gemini Pro modelini kullanıyoruz
+
+# Senin listende çıkan en güçlü ve hızlı modeli seçtim:
+model = genai.GenerativeModel('gemini-2.5-flash')
+
 @app.route('/')
 def home():
     return "Film Öneri Sistemi Backend'e Hoş Geldiniz!"
+
+# --- YARDIMCI FONKSİYONLAR ---
+
+def format_movie_data(movie):
+    """TMDB'den gelen ham veriyi frontend için temizler."""
+    return {
+        'id': movie.get('id'),
+        'title': movie.get('title'),
+        'overview': movie.get('overview'),
+        'release_date': movie.get('release_date'),
+        'vote_average': movie.get('vote_average'),
+        'poster_path': f"https://image.tmdb.org/t/p/w500{movie.get('poster_path')}" if movie.get('poster_path') else None
+    }
+
+def fetch_single_movie(title):
+    """Thread içinde tek bir filmi ismen arar."""
+    search_url = f"{TMDB_BASE_URL}/search/movie"
+    params = {
+        'api_key': TMDB_API_KEY,
+        'language': 'tr-TR',
+        'query': title
+    }
+    try:
+        tmdb_response = requests.get(search_url, params=params)
+        tmdb_data = tmdb_response.json()
+        if tmdb_data and tmdb_data.get('results'):
+            return format_movie_data(tmdb_data['results'][0])
+    except Exception as e:
+        print(f"Film arama hatası ({title}): {e}")
+    return None
+
+# --- API ENDPOINTLERİ ---
 
 @app.route('/api/recommend', methods=['GET'])
 def recommend_movies():
     query = request.args.get('query')
     genre_id = request.args.get('genre_id')
-    page = request.args.get('page', 1) # Sayfalama için page parametresi ekleyelim (şimdilik varsayılan 1)
+    page = request.args.get('page', 1)
 
     params = {
         'api_key': TMDB_API_KEY,
         'language': 'tr-TR',
-        'page': page # Sayfalama parametresini ekle
+        'page': page
     }
 
     if query:
         search_url = f"{TMDB_BASE_URL}/search/movie"
         params['query'] = query
         response = requests.get(search_url, params=params)
-        data = response.json()
-        movies = data.get('results', [])
-
     elif genre_id:
         discover_url = f"{TMDB_BASE_URL}/discover/movie"
         params['with_genres'] = genre_id
         params['sort_by'] = 'popularity.desc'
         response = requests.get(discover_url, params=params)
-        data = response.json()
-        movies = data.get('results', [])
     else:
         popular_url = f"{TMDB_BASE_URL}/movie/popular"
         response = requests.get(popular_url, params=params)
-        data = response.json()
-        movies = data.get('results', [])
 
-    recommended_movies = []
+    data = response.json()
+    movies = data.get('results', [])
+
+    formatted_movies = []
     for movie in movies:
-        recommended_movies.append({
-            'id': movie.get('id'),
-            'title': movie.get('title'),
-            'overview': movie.get('overview'),
-            'release_date': movie.get('release_date'),
-            'vote_average': movie.get('vote_average'),
-            'poster_path': f"https://image.tmdb.org/t/p/w500{movie.get('poster_path')}" if movie.get('poster_path') else None
-        })
+        formatted_movies.append(format_movie_data(movie))
 
-    return jsonify(recommended_movies)
+    return jsonify(formatted_movies)
 
 @app.route('/api/genres', methods=['GET'])
 def get_genres():
@@ -86,69 +112,56 @@ def chatbot_recommendation():
         return jsonify({"error": "Mesaj belirtilmedi"}), 400
 
     try:
-        # Gemini'ya isteği gönder
-        # Filmlerle ilgili cevap vermesini ve film isimlerini belirtmesini istiyoruz.
+        # Prompt Hazırlığı
         prompt = (
-            f"Kullanıcı film önerileri arıyor. Mesajı: '{user_message}'. "
-            "Bu mesajı analiz et ve lütfen sadece filmlerle ilgili bir yanıt ver. "
-            "Eğer film adı önerebiliyorsan, önerdiğin filmlerin tam adlarını "
-            "her satıra bir film adı gelecek şekilde liste halinde yaz. "
-            "Örneğin: \n- Yüzüklerin Efendisi\n- Matrix\nEğer doğrudan film adı önermiyorsan, "
-            "kullanıcıya yardımcı olabilecek genel bir mesaj ver."
+            f"Kullanıcı bir film asistanıyla konuşuyor. Mesaj: '{user_message}'. "
+            "Görevin: Bu mesaja uygun film önerileri bulmak.\n"
+            "ÇIKTI FORMATI: Kesinlikle sadece saf bir JSON array (liste) döndür. "
+            "Başka hiçbir metin, açıklama veya markdown (```json gibi) ekleme.\n"
+            "Örnek: ['The Matrix', 'Inception', 'Interstellar']\n"
+            "Eğer kullanıcı film sormuyorsa veya öneri yoksa boş liste [] döndür."
         )
+
+        # Kütüphane kullanarak isteği gönderiyoruz
         response = model.generate_content(prompt)
+        
+        # Yanıt metnini al
         gemini_text = response.text
 
-        # Gemini'dan gelen yanıtta film isimlerini ayıklama
-        # Burada daha sofistike bir parsing yapılabilir, şimdilik basit liste formatını varsayıyoruz.
+        # Temizleme ve Parsing
+        clean_text = gemini_text.replace("```json", "").replace("```", "").strip()
+        
         movie_titles = []
-        if gemini_text:
-            lines = gemini_text.split('\n')
-            for line in lines:
-                line = line.strip()
-                if line.startswith('- ') or line.startswith('* '): # Liste formatlarını kontrol et
-                    movie_title = line[2:].strip()
-                    if movie_title:
-                        movie_titles.append(movie_title)
-                elif line: # Direkt film adı da olabilir
-                    movie_titles.append(line)
+        bot_message = "İşte senin için seçtiğim filmler:"
+
+        try:
+            movie_titles = json.loads(clean_text)
+        except (json.JSONDecodeError, TypeError):
+            # JSON değilse sohbet cevabıdır
+            movie_titles = []
+            bot_message = "Şu an tam olarak film listesi çıkaramadım ama sohbet edebiliriz."
 
         recommended_movies_from_tmdb = []
+
+        # ThreadPoolExecutor ile TMDB isteklerini paralel yap
         if movie_titles:
-            for title in movie_titles:
-                # Her bir film adını TMDb'de arayalım
-                search_url = f"{TMDB_BASE_URL}/search/movie"
-                params = {
-                    'api_key': TMDB_API_KEY,
-                    'language': 'tr-TR',
-                    'query': title
-                }
-                tmdb_response = requests.get(search_url, params=params)
-                tmdb_data = tmdb_response.json()
-                
-                if tmdb_data and tmdb_data.get('results'):
-                    # En iyi eşleşen filmi al (genellikle ilk sonuç)
-                    movie = tmdb_data['results'][0]
-                    recommended_movies_from_tmdb.append({
-                        'id': movie.get('id'),
-                        'title': movie.get('title'),
-                        'overview': movie.get('overview'),
-                        'release_date': movie.get('release_date'),
-                        'vote_average': movie.get('vote_average'),
-                        'poster_path': f"https://image.tmdb.org/t/p/w500{movie.get('poster_path')}" if movie.get('poster_path') else None
-                    })
-            
-            if recommended_movies_from_tmdb:
-                return jsonify({"recommendations": recommended_movies_from_tmdb, "message": "İşte sizin için film önerileri:"})
-            else:
-                return jsonify({"recommendations": [], "message": "Üzgünüm, önerilen filmleri TMDb'de bulamadım."})
-        else:
-            return jsonify({"recommendations": [], "message": gemini_text}) # Gemini'dan gelen genel mesajı döndür
+            with concurrent.futures.ThreadPoolExecutor() as executor:
+                results = executor.map(fetch_single_movie, movie_titles)
+                recommended_movies_from_tmdb = [res for res in results if res is not None]
+
+        if not recommended_movies_from_tmdb:
+             if bot_message == "İşte senin için seçtiğim filmler:":
+                 bot_message = "Buna uygun film bulamadım veya veritabanında eşleşmedi."
+
+        return jsonify({
+            "recommendations": recommended_movies_from_tmdb,
+            "message": bot_message
+        })
 
     except Exception as e:
-        print(f"Chatbot hatası: {e}")
-        return jsonify({"error": "Chatbot ile iletişimde bir sorun oluştu."}), 500
-
+        print(f"Chatbot genel hatası: {e}")
+        # Detaylı hata mesajını terminalde gör, kullanıcıya genel mesaj dön
+        return jsonify({"error": "Yapay zeka servisi şu an yanıt veremiyor."}), 500
 
 if __name__ == '__main__':
     app.run(debug=True, port=5000)

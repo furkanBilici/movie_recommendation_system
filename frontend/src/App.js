@@ -1,5 +1,3 @@
-// frontend/src/App.js
-
 import React, { useState, useEffect, useRef } from 'react';
 import './App.css';
 
@@ -15,68 +13,56 @@ function App() {
   const [chatMessages, setChatMessages] = useState([]);
   const [chatInput, setChatInput] = useState('');
   const [chatLoading, setChatLoading] = useState(false);
-  const messagesEndRef = useRef(null); // Mesajların sonuna otomatik kaydırma için
+  const messagesEndRef = useRef(null); 
 
-  // Chatbot mesajları her güncellendiğinde en alta kaydır
+  // Mesaj gelince aşağı kaydır
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  }, [chatMessages]);
+  }, [chatMessages, chatLoading]);
 
-
-  // Film türlerini API'den çekme
+  // Türleri çek
   useEffect(() => {
     const fetchGenres = async () => {
       try {
         const response = await fetch('http://localhost:5000/api/genres');
-        if (!response.ok) {
-          throw new Error(`HTTP error! status: ${response.status}`);
+        if (response.ok) {
+          const data = await response.json();
+          setGenres(data);
         }
-        const data = await response.json();
-        setGenres(data);
       } catch (e) {
-        console.error("Film türleri çekilirken hata oluştu:", e);
-        setError("Film türleri yüklenemedi.");
+        console.error("Tür hatası:", e);
       }
     };
     fetchGenres();
   }, []);
 
-  // Film önerilerini API'den çekme (Sayfalama için 'page' parametresi eklendi)
+  // Filmleri çek
   const fetchMovies = async (query = '', genreId = '', page = 1) => {
     setLoading(true);
     setError(null);
     let url = 'http://localhost:5000/api/recommend';
 
     const params = new URLSearchParams();
-    if (query) {
-      params.append('query', query);
-    }
-    if (genreId) {
-      params.append('genre_id', genreId);
-    }
-    params.append('page', page); // Sayfa parametresini her zaman ekle
+    if (query) params.append('query', query);
+    if (genreId) params.append('genre_id', genreId);
+    params.append('page', page);
 
-    if (params.toString()) {
-      url = `${url}?${params.toString()}`;
-    }
+    if (params.toString()) url = `${url}?${params.toString()}`;
 
     try {
       const response = await fetch(url);
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error("API Hatası");
       const data = await response.json();
       setMovies(data);
     } catch (e) {
-      console.error("Filmler çekilirken hata oluştu:", e);
-      setError("Filmler yüklenirken bir sorun oluştu. Lütfen tekrar deneyin.");
+      setError("Filmler yüklenirken bir sorun oluştu.");
       setMovies([]);
     } finally {
       setLoading(false);
     }
   };
 
-  // Bileşen yüklendiğinde popüler filmleri göster
+  // İlk yükleme
   useEffect(() => {
     fetchMovies();
   }, []);
@@ -94,46 +80,38 @@ function App() {
     fetchMovies('', genreId);
   };
 
-  // Chatbot mesajı gönderme
+  // Chatbot Gönderim
   const handleChatSubmit = async (e) => {
     e.preventDefault();
     if (!chatInput.trim()) return;
 
-    const newUserMessage = { sender: 'user', text: chatInput };
-    setChatMessages(prevMessages => [...prevMessages, newUserMessage]);
+    const userText = chatInput;
+    setChatMessages(prev => [...prev, { sender: 'user', text: userText }]);
     setChatInput('');
     setChatLoading(true);
 
     try {
       const response = await fetch('http://localhost:5000/api/chatbot', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-        },
-        body: JSON.stringify({ message: newUserMessage.text }),
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: userText }),
       });
 
-      if (!response.ok) {
-        throw new Error(`HTTP error! status: ${response.status}`);
-      }
+      if (!response.ok) throw new Error("Chat hatası");
 
       const data = await response.json();
-      let botMessageText = data.message || "Anlamadım, tekrar dener misin?";
       
+      // Eğer chatbot film önerdiyse ana listeyi güncelle
       if (data.recommendations && data.recommendations.length > 0) {
-        // Eğer chatbot film önerileri döndürdüyse, onları movie listesine ekle
         setMovies(data.recommendations);
-        botMessageText = data.message || "İşte senin için bulduğum filmler:";
       }
 
-      const newBotMessage = { sender: 'bot', text: botMessageText };
-      setChatMessages(prevMessages => [...prevMessages, newBotMessage]);
+      setChatMessages(prev => [...prev, { sender: 'bot', text: data.message }]);
 
     } catch (e) {
-      console.error("Chatbot ile iletişimde hata oluştu:", e);
-      setChatMessages(prevMessages => [
-        ...prevMessages,
-        { sender: 'bot', text: "Üzgünüm, chatbot'a şu an ulaşılamıyor. Lütfen daha sonra tekrar deneyin." }
+      setChatMessages(prev => [
+        ...prev,
+        { sender: 'bot', text: "Bir hata oluştu, lütfen tekrar dene." }
       ]);
     } finally {
       setChatLoading(false);
@@ -143,10 +121,11 @@ function App() {
   return (
     <div className="App">
       <header className="App-header">
-        <h1>Film Öneri Sistemi</h1>
+        <h1>🎬 Yapay Zeka Film Asistanı</h1>
       </header>
 
       <div className="main-content">
+        {/* SOL TARAF: FİLMLER */}
         <div className="movie-section">
           <div className="controls">
             <form onSubmit={handleSearch} className="search-form">
@@ -161,13 +140,11 @@ function App() {
 
             <select onChange={handleGenreChange} value={selectedGenre} className="genre-select">
               <option value="">Tüm Türler</option>
-              {genres.map(genre => (
-                <option key={genre.id} value={genre.id}>{genre.name}</option>
-              ))}
+              {genres.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
             </select>
           </div>
 
-          {loading && <p>Filmler yükleniyor...</p>}
+          {loading && <div className="loading-spinner">Filmler yükleniyor...</div>}
           {error && <p className="error-message">{error}</p>}
 
           <div className="movie-list">
@@ -180,42 +157,47 @@ function App() {
                     <div className="no-image">Resim Yok</div>
                   )}
                   <h2>{movie.title}</h2>
-                  <p>IMDb: {movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A'}</p>
-                  <p>{movie.overview && movie.overview.length > 150 ? movie.overview.substring(0, 150) + '...' : movie.overview}</p>
-                  <p className="release-date">Çıkış Tarihi: {movie.release_date || 'Bilinmiyor'}</p>
+                  <p>⭐ {movie.vote_average ? movie.vote_average.toFixed(1) : 'N/A'}</p>
+                  <p className="overview">{movie.overview ? movie.overview.substring(0, 100) + '...' : ''}</p>
+                  <p className="release-date">{movie.release_date || 'Tarih Yok'}</p>
                 </div>
               ))
             ) : (
-              !loading && !error && <p>Gösterilecek film bulunamadı. Lütfen arama yapın veya bir tür seçin.</p>
+              !loading && !error && <p>Film bulunamadı.</p>
             )}
           </div>
         </div>
 
+        {/* SAĞ TARAF: CHATBOT */}
         <div className="chatbot-section">
           <div className="chat-window">
+            <div className="chat-header">Asistana Sor</div>
             <div className="chat-messages">
               {chatMessages.length === 0 && (
                 <div className="welcome-message">
-                  Merhaba! Film önerileri için bana sorular sorabilirsin.
+                  "Bana aksiyon filmleri öner" veya "Titanic gibi filmler göster" diyebilirsin.
                 </div>
               )}
               {chatMessages.map((msg, index) => (
                 <div key={index} className={`chat-message ${msg.sender}`}>
-                  <span className="sender-label">{msg.sender === 'user' ? 'Sen:' : 'Bot:'}</span> {msg.text}
+                  {msg.text}
                 </div>
               ))}
-              {chatLoading && <div className="chat-message bot loading">Bot yazıyor...</div>}
-              <div ref={messagesEndRef} /> {/* Otomatik kaydırma için */}
+              {chatLoading && <div className="chat-message bot typing">Yazıyor...</div>}
+              <div ref={messagesEndRef} />
             </div>
+            
             <form onSubmit={handleChatSubmit} className="chat-input-form">
               <input
                 type="text"
-                placeholder="Mesajını yaz..."
+                placeholder="Buraya yazın..."
                 value={chatInput}
                 onChange={(e) => setChatInput(e.target.value)}
                 disabled={chatLoading}
               />
-              <button type="submit" disabled={chatLoading}>Gönder</button>
+              <button type="submit" disabled={chatLoading}>
+                {chatLoading ? '...' : 'Gönder'}
+              </button>
             </form>
           </div>
         </div>
