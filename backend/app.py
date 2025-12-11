@@ -7,7 +7,6 @@ from dotenv import load_dotenv
 from flask_cors import CORS
 import google.generativeai as genai
 
-# .env dosyasındaki ortam değişkenlerini yükle
 load_dotenv()
 
 app = Flask(__name__)
@@ -17,18 +16,14 @@ TMDB_API_KEY = os.getenv("TMDB_API_KEY")
 GEMINI_API_KEY = os.getenv("GEMINI_API_KEY")
 TMDB_BASE_URL = "https://api.themoviedb.org/3"
 
-# --- GEMINI AYARLARI ---
-# Kütüphaneyi yapılandırıyoruz
 genai.configure(api_key=GEMINI_API_KEY)
 
-# Senin listende çıkan en güçlü ve hızlı modeli seçtim:
 model = genai.GenerativeModel('gemini-2.5-flash')
 
 @app.route('/')
 def home():
     return "Film Öneri Sistemi Backend'e Hoş Geldiniz!"
 
-# --- YARDIMCI FONKSİYONLAR ---
 
 def format_movie_data(movie):
     """TMDB'den gelen ham veriyi frontend için temizler."""
@@ -58,7 +53,6 @@ def fetch_single_movie(title):
         print(f"Film arama hatası ({title}): {e}")
     return None
 
-# --- API ENDPOINTLERİ ---
 
 @app.route('/api/recommend', methods=['GET'])
 def recommend_movies():
@@ -112,7 +106,6 @@ def chatbot_recommendation():
         return jsonify({"error": "Mesaj belirtilmedi"}), 400
 
     try:
-        # Prompt Hazırlığı
         prompt = (
             f"Kullanıcı bir film asistanıyla konuşuyor. Mesaj: '{user_message}'. "
             "Görevin: Bu mesaja uygun film önerileri bulmak.\n"
@@ -122,13 +115,10 @@ def chatbot_recommendation():
             "Eğer kullanıcı film sormuyorsa veya öneri yoksa boş liste [] döndür."
         )
 
-        # Kütüphane kullanarak isteği gönderiyoruz
         response = model.generate_content(prompt)
         
-        # Yanıt metnini al
         gemini_text = response.text
 
-        # Temizleme ve Parsing
         clean_text = gemini_text.replace("```json", "").replace("```", "").strip()
         
         movie_titles = []
@@ -137,13 +127,11 @@ def chatbot_recommendation():
         try:
             movie_titles = json.loads(clean_text)
         except (json.JSONDecodeError, TypeError):
-            # JSON değilse sohbet cevabıdır
             movie_titles = []
             bot_message = "Şu an tam olarak film listesi çıkaramadım ama sohbet edebiliriz."
 
         recommended_movies_from_tmdb = []
 
-        # ThreadPoolExecutor ile TMDB isteklerini paralel yap
         if movie_titles:
             with concurrent.futures.ThreadPoolExecutor() as executor:
                 results = executor.map(fetch_single_movie, movie_titles)
@@ -160,7 +148,6 @@ def chatbot_recommendation():
 
     except Exception as e:
         print(f"Chatbot genel hatası: {e}")
-        # Detaylı hata mesajını terminalde gör, kullanıcıya genel mesaj dön
         return jsonify({"error": "Yapay zeka servisi şu an yanıt veremiyor."}), 500
 
 if __name__ == '__main__':
