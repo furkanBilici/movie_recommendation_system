@@ -1,195 +1,282 @@
+/* App.css - Modern Dark Theme */
+@import url('https://fonts.googleapis.com/css2?family=Poppins:wght@300;400;600&display=swap');
+
+body {
+  margin: 0;
+  background-color: #141414; /* Netflix tarzı koyu arka plan */
+  font-family: 'Poppins', sans-serif;
+  color: #fff;
+}
+
 .App {
-  text-align: center;
-  font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;
-  background-color: #f0f2f5;
   min-height: 100vh;
-}
-
-.App-header {
-  background-color: #20232a;
-  padding: 15px;
-  color: #61dafb;
-  margin-bottom: 20px;
-  box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-}
-
-/* ANA YAPI (LAYOUT) */
-.main-content {
-  display: flex;
-  gap: 20px;
-  max-width: 1600px;
-  margin: 0 auto;
-  padding: 0 20px;
-  align-items: flex-start;
-  height: calc(100vh - 100px); /* Ekranın kalanını kullan */
-}
-
-/* SOL: FİLM BÖLÜMÜ */
-.movie-section {
-  flex: 3;
   display: flex;
   flex-direction: column;
-  height: 100%;
-  overflow-y: auto; /* Kendi içinde kaydırılsın */
-  padding-right: 10px;
 }
 
+/* HEADER */
+.App-header {
+  background: linear-gradient(to bottom, rgba(0,0,0,0.9) 0%, rgba(0,0,0,0) 100%);
+  padding: 20px 40px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.App-header h1 {
+  color: #e50914; /* İkonik kırmızı ton */
+  margin: 0;
+  font-size: 1.8rem;
+  letter-spacing: 1px;
+}
+
+/* MAIN LAYOUT */
+.main-content {
+  display: flex;
+  gap: 30px;
+  padding: 20px 40px;
+  height: calc(100vh - 100px);
+  align-items: flex-start;
+}
+
+/* SOL: FİLM ALANI */
+.movie-section {
+  flex: 3;
+  height: 100%;
+  overflow-y: auto;
+  padding-right: 15px;
+}
+
+/* Scrollbar Özelleştirme */
+.movie-section::-webkit-scrollbar {
+  width: 8px;
+}
+.movie-section::-webkit-scrollbar-thumb {
+  background-color: #333;
+  border-radius: 4px;
+}
+
+/* KONTROLLER */
 .controls {
   display: flex;
-  justify-content: center;
   gap: 15px;
-  margin-bottom: 20px;
-  flex-wrap: wrap;
+  margin-bottom: 30px;
+  background: #1f1f1f;
+  padding: 15px;
+  border-radius: 12px;
+  box-shadow: 0 4px 15px rgba(0,0,0,0.3);
 }
 
-input[type="text"], .genre-select {
-  padding: 12px;
-  border: 1px solid #ddd;
-  border-radius: 8px;
+.search-form {
+  display: flex;
+  gap: 10px;
+  flex: 1;
+}
+
+input[type="text"] {
+  flex: 1;
+  padding: 12px 15px;
+  background-color: #333;
+  border: 1px solid #444;
+  border-radius: 6px;
+  color: white;
   outline: none;
 }
 
-button {
-  padding: 12px 20px;
-  background-color: #61dafb;
-  color: #20232a;
-  border: none;
-  border-radius: 8px;
+.genre-select {
+  background-color: #333;
+  color: white;
+  border: 1px solid #444;
+  border-radius: 6px;
+  padding: 0 15px;
   cursor: pointer;
-  font-weight: bold;
-  transition: background 0.3s;
+}
+
+button {
+  padding: 12px 25px;
+  background-color: #e50914;
+  color: white;
+  border: none;
+  border-radius: 6px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: all 0.3s ease;
 }
 
 button:hover {
-  background-color: #21a1f1;
+  background-color: #f40612;
+  transform: scale(1.05);
 }
 
+/* FİLM KARTLARI (YENİ HOVER EFEKTLİ) */
 .movie-list {
   display: grid;
-  grid-template-columns: repeat(auto-fill, minmax(200px, 1fr));
-  gap: 20px;
-  padding-bottom: 20px;
+  grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+  gap: 25px;
+  padding-bottom: 40px;
 }
 
 .movie-card {
-  background: white;
-  border-radius: 10px;
-  padding: 10px;
-  box-shadow: 0 2px 5px rgba(0,0,0,0.1);
-  transition: transform 0.2s;
-  display: flex;
-  flex-direction: column;
+  position: relative;
+  background-color: #1f1f1f;
+  border-radius: 8px;
+  overflow: hidden;
+  box-shadow: 0 4px 10px rgba(0,0,0,0.3);
+  transition: transform 0.3s ease, box-shadow 0.3s ease;
+  height: 350px; /* Sabit yükseklik */
+  cursor: pointer;
 }
 
-.movie-card:hover {
-  transform: translateY(-5px);
-}
-
+/* Resim Varsayılan Hali */
 .movie-card img {
   width: 100%;
-  height: 300px;
+  height: 100%;
   object-fit: cover;
-  border-radius: 8px;
+  transition: transform 0.4s ease;
 }
 
-.movie-card h2 {
-  font-size: 1rem;
-  margin: 10px 0 5px 0;
-  color: #333;
+/* Kartın Üzerine Gelince */
+.movie-card:hover {
+  transform: scale(1.03); /* Kartı hafif büyüt */
+  box-shadow: 0 10px 20px rgba(0,0,0,0.5);
+  z-index: 2;
 }
 
-.movie-card .overview {
+.movie-card:hover img {
+  transform: scale(1.1); /* Resmi zoom yap */
+  filter: brightness(0.4); /* Resmi karart */
+}
+
+/* Overlay (Gizli Bilgi Alanı) */
+.movie-overlay {
+  position: absolute;
+  bottom: 0;
+  left: 0;
+  right: 0;
+  top: 0;
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  justify-content: flex-end; /* İçeriği alta yasla */
+  background: linear-gradient(to top, rgba(0,0,0,0.95) 20%, rgba(0,0,0,0.6) 80%, rgba(0,0,0,0) 100%);
+  opacity: 0;
+  transition: opacity 0.3s ease;
+}
+
+.movie-card:hover .movie-overlay {
+  opacity: 1;
+}
+
+.movie-overlay h2 {
+  font-size: 1.1rem;
+  margin: 0 0 10px 0;
+  color: #fff;
+  text-shadow: 0 2px 4px rgba(0,0,0,0.8);
+}
+
+.movie-meta {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+.rating {
+  color: #46d369; /* Netflix yeşili maç oranı gibi */
+  border: 1px solid #46d369;
+  padding: 2px 6px;
+  border-radius: 4px;
+}
+
+.date {
+  color: #ccc;
+}
+
+.movie-overview {
   font-size: 0.8rem;
-  color: #666;
-  flex-grow: 1;
+  color: #ddd;
+  line-height: 1.4;
+  display: -webkit-box;
+  -webkit-line-clamp: 4; /* Max 4 satır göster */
+  -webkit-box-orient: vertical;
+  overflow: hidden;
+  margin-top: 5px;
 }
 
-/* SAĞ: CHATBOT BÖLÜMÜ */
+/* SAĞ: CHATBOT */
 .chatbot-section {
   flex: 1;
+  min-width: 320px;
+  max-width: 380px;
   height: 100%;
-  min-width: 300px;
-  max-width: 400px;
 }
 
 .chat-window {
-  background: white;
+  background-color: #1f1f1f;
   border-radius: 12px;
-  box-shadow: 0 4px 15px rgba(0,0,0,0.1);
+  height: 100%;
   display: flex;
   flex-direction: column;
-  height: 85vh; /* Chat pencere yüksekliği */
+  border: 1px solid #333;
   overflow: hidden;
 }
 
 .chat-header {
-  background: #20232a;
-  color: white;
+  background-color: #2b2b2b;
   padding: 15px;
   text-align: center;
-  font-weight: bold;
+  border-bottom: 1px solid #333;
+  color: #e50914;
+  font-weight: 600;
 }
 
 .chat-messages {
-  flex-grow: 1;
-  padding: 15px;
+  flex: 1;
+  padding: 20px;
   overflow-y: auto;
-  background-color: #f9f9f9;
   display: flex;
   flex-direction: column;
-  gap: 10px;
+  gap: 12px;
 }
 
 .chat-message {
-  padding: 10px 15px;
-  border-radius: 18px;
-  max-width: 85%;
-  font-size: 0.95rem;
+  max-width: 80%;
+  padding: 10px 14px;
+  border-radius: 12px;
+  font-size: 0.9rem;
   line-height: 1.4;
-  word-wrap: break-word;
-}
-
-.chat-message.user {
-  background-color: #0084ff;
-  color: white;
-  align-self: flex-end;
-  border-bottom-right-radius: 4px;
 }
 
 .chat-message.bot {
-  background-color: #e4e6eb;
-  color: black;
+  background-color: #333;
+  color: #eee;
   align-self: flex-start;
-  border-bottom-left-radius: 4px;
+  border-bottom-left-radius: 2px;
 }
 
-.chat-message.bot.typing {
-  font-style: italic;
-  color: #777;
-  background: none;
-  padding-left: 0;
+.chat-message.user {
+  background-color: #e50914;
+  color: white;
+  align-self: flex-end;
+  border-bottom-right-radius: 2px;
 }
 
 .chat-input-form {
   padding: 15px;
-  background: white;
-  border-top: 1px solid #eee;
+  background-color: #2b2b2b;
   display: flex;
   gap: 10px;
 }
 
 .chat-input-form input {
-  flex-grow: 1;
-  border-radius: 20px;
-}
-
-.chat-input-form button {
-  border-radius: 20px;
-  padding: 10px 20px;
+  background-color: #1f1f1f;
+  border: none;
 }
 
 /* Responsive */
-@media (max-width: 900px) {
+@media (max-width: 968px) {
   .main-content {
     flex-direction: column;
     height: auto;
@@ -198,7 +285,137 @@ button:hover {
     width: 100%;
     max-width: none;
   }
-  .chat-window {
-    height: 500px;
+  .chatbot-section {
+    height: 500px; /* Mobilde chat yüksekliği */
+  }
+}
+/* --- APP.CSS EN ALTINA EKLE --- */
+
+/* Modal (Açılır Pencere) Arka Planı */
+.modal-overlay {
+  position: fixed;
+  top: 0;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  background-color: rgba(0, 0, 0, 0.85); /* Arkası kararsın */
+  backdrop-filter: blur(5px); /* Arkası hafif bulanıklaşsın */
+  z-index: 1000; /* En üstte görünsün */
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  padding: 20px;
+  animation: fadeIn 0.3s ease;
+}
+
+/* Modal İçeriği (Kutu) */
+.modal-content {
+  background-color: #181818;
+  width: 90%;
+  max-width: 900px;
+  max-height: 90vh; /* Ekran boyunu taşmasın */
+  border-radius: 12px;
+  display: flex;
+  overflow: hidden; /* Taşmaları gizle */
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+  position: relative;
+  border: 1px solid #333;
+}
+
+/* Modal Kapatma Butonu (X) */
+.close-button {
+  position: absolute;
+  top: 15px;
+  right: 15px;
+  background-color: rgba(0, 0, 0, 0.6);
+  color: white;
+  border: 2px solid rgba(255,255,255,0.2);
+  border-radius: 50%;
+  width: 40px;
+  height: 40px;
+  font-size: 20px;
+  display: flex;
+  justify-content: center;
+  align-items: center;
+  cursor: pointer;
+  z-index: 10;
+  transition: all 0.2s;
+}
+
+.close-button:hover {
+  background-color: #e50914;
+  border-color: #e50914;
+  transform: scale(1.1);
+}
+
+/* Modal İçindeki Resim Alanı */
+.modal-image-container {
+  flex: 1;
+  min-width: 300px;
+}
+
+.modal-image-container img {
+  width: 100%;
+  height: 100%;
+  object-fit: cover;
+}
+
+/* Modal İçindeki Yazı Alanı */
+.modal-details {
+  flex: 2;
+  padding: 40px;
+  overflow-y: auto; /* Yazı çok uzunsa kaydırılsın */
+  display: flex;
+  flex-direction: column;
+}
+
+.modal-details h2 {
+  font-size: 2.5rem;
+  margin-bottom: 10px;
+  color: #fff;
+}
+
+.modal-info-row {
+  display: flex;
+  gap: 15px;
+  margin-bottom: 25px;
+  font-size: 1rem;
+}
+
+.modal-rating {
+  color: #46d369;
+  font-weight: bold;
+  border: 1px solid #46d369;
+  padding: 2px 8px;
+  border-radius: 4px;
+}
+
+.modal-overview {
+  font-size: 1.1rem;
+  line-height: 1.6;
+  color: #ddd;
+}
+
+/* Modal Animasyonu */
+@keyframes fadeIn {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+/* Mobilde Modal Düzeni (Alt alta olsun) */
+@media (max-width: 768px) {
+  .modal-content {
+    flex-direction: column;
+    overflow-y: auto; /* Tüm kutu kaydırılsın */
+  }
+  .modal-image-container {
+    height: 300px;
+    min-width: auto;
+  }
+  .modal-details {
+    padding: 20px;
+  }
+  .modal-details h2 {
+    font-size: 1.8rem;
   }
 }
