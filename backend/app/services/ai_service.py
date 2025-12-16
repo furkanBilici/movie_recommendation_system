@@ -2,7 +2,6 @@ import json
 import google.generativeai as genai
 from config import Config
 
-# Servis başladığında bir kere konfigüre edilsin
 genai.configure(api_key=Config.GEMINI_API_KEY)
 model = genai.GenerativeModel('gemini-2.5-flash')
 
@@ -28,7 +27,6 @@ class AIService:
                 message = "İşte senin için seçtiğim filmler:"
                 return movie_titles, message
             except (json.JSONDecodeError, TypeError):
-                # JSON dönmediyse sohbet cevabıdır
                 return [], "Şu an tam olarak film listesi çıkaramadım, istersen tekrar dene."
 
         except Exception as e:

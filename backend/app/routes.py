@@ -13,9 +13,7 @@ def recommend_movies():
     query = request.args.get('query')
     genre_id = request.args.get('genre_id')
     page = request.args.get('page', 1)
-    filter_type = request.args.get('filter_type', 'popular') # Yeni parametre
-    
-    # Servisten artık hem filmler hem de toplam sayfa sayısı dönüyor
+    filter_type = request.args.get('filter_type', 'popular')
     data = TMDBService.get_movies(query, genre_id, page, filter_type)
     return jsonify(data)
 

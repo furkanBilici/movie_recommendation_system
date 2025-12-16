@@ -53,7 +53,6 @@ class TMDBService:
             params['with_genres'] = genre_id
             params['sort_by'] = 'popularity.desc'
         else:
-            # Kullanıcı "En Yüksek Puanlı"yı seçtiyse ona göre endpoint'e git
             if filter_type == 'top_rated':
                 url = f"{Config.TMDB_BASE_URL}/movie/top_rated"
             else:
@@ -65,7 +64,6 @@ class TMDBService:
         movies = data.get('results', [])
         total_pages = data.get('total_pages', 1)
         
-        # API bazen 500 sayfadan fazlasına izin vermez, limit koyabiliriz
         if total_pages > 500:
             total_pages = 500
 

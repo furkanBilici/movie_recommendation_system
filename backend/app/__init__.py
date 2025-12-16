@@ -8,7 +8,6 @@ def create_app():
     
     CORS(app)
 
-    # Route'ları (Blueprint) uygulamaya kaydediyoruz
     from app.routes import main
     app.register_blueprint(main)
 
