@@ -9,8 +9,10 @@ function App() {
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState(null);
   
-  // --- YENİ EKLENEN: Sıralama State'i ---
-  const [sortType, setSortType] = useState('default'); 
+  // --- YENİ EKLENEN: Sayfalama ve Filtre State'leri ---
+  const [currentPage, setCurrentPage] = useState(1);
+  const [totalPages, setTotalPages] = useState(1);
+  const [filterType, setFilterType] = useState('popular'); // 'popular' veya 'top_rated'
 
   // Modal State'i
   const [selectedMovie, setSelectedMovie] = useState(null);
@@ -40,7 +42,8 @@ function App() {
     fetchGenres();
   }, []);
 
-  const fetchMovies = async (query = '', genreId = '', page = 1) => {
+  // --- GÜNCELLENEN FETCH FONKSİYONU ---
+  const fetchMovies = async (query = '', genreId = '', page = 1, currentFilter = 'popular') => {
     setLoading(true);
     setError(null);
     let url = 'http://localhost:5000/api/recommend';
@@ -49,6 +52,7 @@ function App() {
     if (query) params.append('query', query);
     if (genreId) params.append('genre_id', genreId);
     params.append('page', page);
+    params.append('filter_type', currentFilter); // Filtre tipini gönder
 
     if (params.toString()) url = `${url}?${params.toString()}`;
 
@@ -56,7 +60,16 @@ function App() {
       const response = await fetch(url);
       if (!response.ok) throw new Error("API Hatası");
       const data = await response.json();
-      setMovies(data);
+      
+      // Backend artık { results: [], total_pages: 10 } dönüyor
+      if (data.results) {
+          setMovies(data.results);
+          setTotalPages(data.total_pages);
+      } else {
+          // Eğer eski formatta dönerse (Chatbot vs)
+          setMovies(data); 
+      }
+      
     } catch (e) {
       setError("Filmler yüklenirken bir sorun oluştu.");
       setMovies([]);
@@ -65,55 +78,46 @@ function App() {
     }
   };
 
+  // İlk yükleme
   useEffect(() => {
-    fetchMovies();
+    fetchMovies('', '', 1, 'popular');
   }, []);
 
   const handleSearch = (e) => {
     e.preventDefault();
-    fetchMovies(searchTerm, '');
+    setCurrentPage(1); // Aramada sayfayı başa al
+    fetchMovies(searchTerm, '', 1, filterType);
     setSelectedGenre('');
-    setSortType('default'); // Aramada sıralamayı sıfırla
   };
 
   const handleGenreChange = (e) => {
     const genreId = e.target.value;
     setSelectedGenre(genreId);
     setSearchTerm('');
-    fetchMovies('', genreId);
-    setSortType('default'); // Tür değişiminde sıralamayı sıfırla
+    setCurrentPage(1);
+    fetchMovies('', genreId, 1, 'popular'); // Tür seçince popüler moda geç
+    setFilterType('popular');
   };
 
-  // --- YENİ EKLENEN: Sıralama Değişim Fonksiyonu ---
-  const handleSortChange = (e) => {
-    setSortType(e.target.value);
+  // --- YENİ: Kategori Değişimi (Popüler / Top Rated) ---
+  const handleFilterChange = (e) => {
+    const newFilter = e.target.value;
+    setFilterType(newFilter);
+    setCurrentPage(1); // Sayfayı sıfırla
+    setSearchTerm(''); // Aramayı temizle
+    setSelectedGenre(''); // Türü temizle
+    fetchMovies('', '', 1, newFilter);
   };
 
-  // --- YENİ EKLENEN: Sıralama Mantığı ---
-  const getSortedMovies = () => {
-    // Mevcut film listesinin kopyasını al (State'i doğrudan değiştirmemek için)
-    const moviesCopy = [...movies];
-
-    switch (sortType) {
-      case 'date_desc': // En Yeni
-        return moviesCopy.sort((a, b) => {
-          return new Date(b.release_date || 0) - new Date(a.release_date || 0);
-        });
-      case 'rating_desc': // IMDb Puanı (Yüksekten Düşüğe)
-        return moviesCopy.sort((a, b) => {
-          return (b.vote_average || 0) - (a.vote_average || 0);
-        });
-      case 'alphabetical_asc': // A'dan Z'ye
-        return moviesCopy.sort((a, b) => {
-          return (a.title || "").localeCompare(b.title || "");
-        });
-      default: // Varsayılan (API'den geldiği gibi)
-        return moviesCopy;
+  // --- YENİ: Sayfa Değiştirme Butonları ---
+  const handlePageChange = (newPage) => {
+    if (newPage >= 1 && newPage <= totalPages) {
+      setCurrentPage(newPage);
+      fetchMovies(searchTerm, selectedGenre, newPage, filterType);
+      // Sayfa değişince yukarı kaydır
+      window.scrollTo({ top: 0, behavior: 'smooth' });
     }
   };
-
-  // Render edilmeden önce sıralanmış listeyi alıyoruz
-  const sortedMovies = getSortedMovies();
 
   const handleChatSubmit = async (e) => {
     e.preventDefault();
@@ -136,7 +140,9 @@ function App() {
       const data = await response.json();
       if (data.recommendations && data.recommendations.length > 0) {
         setMovies(data.recommendations);
-        setSortType('default'); // Yeni öneriler gelince sıralamayı sıfırla
+        // Chatbot önerilerinde sayfalama mantığını devre dışı bırakabiliriz veya gizleyebiliriz
+        setTotalPages(1); 
+        setCurrentPage(1);
       }
       setChatMessages(prev => [...prev, { sender: 'bot', text: data.message }]);
     } catch (e) {
@@ -177,29 +183,25 @@ function App() {
             </form>
 
             <div className="filter-group" style={{display:'flex', gap:'10px'}}>
-              {/* Tür Seçimi */}
               <select onChange={handleGenreChange} value={selectedGenre} className="genre-select">
                 <option value="">Tüm Türler</option>
                 {genres.map(g => <option key={g.id} value={g.id}>{g.name}</option>)}
               </select>
 
-              {/* --- YENİ EKLENEN: Sıralama Kutusu --- */}
-              <select onChange={handleSortChange} value={sortType} className="genre-select" style={{minWidth:'140px'}}>
-                <option value="default">Önerilen</option>
-                <option value="date_desc">📅 En Yeni</option>
-                <option value="rating_desc">⭐ IMDb Puanı</option>
-                <option value="alphabetical_asc">🔤 A'dan Z'ye</option>
+              {/* --- YENİ EKLENEN: Kategori Seçimi --- */}
+              <select onChange={handleFilterChange} value={filterType} className="genre-select" style={{minWidth:'150px', fontWeight:'bold', color: filterType === 'top_rated' ? '#e50914' : 'white'}}>
+                <option value="popular">🔥 Popüler</option>
+                <option value="top_rated">⭐ En Yüksek Puanlı</option>
               </select>
             </div>
           </div>
 
-          {loading && <div className="loading-spinner">Filmler Sahneye Alınıyor...</div>}
+          {loading && <div className="loading-spinner">Filmler Yükleniyor...</div>}
           {error && <p className="error-message">{error}</p>}
 
           <div className="movie-list">
-            {/* Burada artık 'movies' yerine 'sortedMovies' kullanıyoruz */}
-            {sortedMovies.length > 0 ? (
-              sortedMovies.map(movie => (
+            {movies.length > 0 ? (
+              movies.map(movie => (
                 <div 
                   key={movie.id} 
                   className="movie-card" 
@@ -227,9 +229,33 @@ function App() {
                 </div>
               ))
             ) : (
-              !loading && !error && <p style={{textAlign: 'center', width: '100%', marginTop: '50px'}}>Aradığınız kriterlere uygun film bulunamadı.</p>
+              !loading && !error && <p style={{textAlign: 'center', width: '100%', marginTop: '50px'}}>Film bulunamadı.</p>
             )}
           </div>
+
+          {/* --- YENİ EKLENEN: Sayfalama Kontrolleri --- */}
+          {movies.length > 0 && totalPages > 1 && (
+            <div className="pagination-controls" style={{display: 'flex', justifyContent: 'center', gap: '20px', padding: '20px', alignItems: 'center'}}>
+                <button 
+                    onClick={() => handlePageChange(currentPage - 1)} 
+                    disabled={currentPage === 1}
+                    style={{opacity: currentPage === 1 ? 0.5 : 1}}
+                >
+                    &laquo; Önceki
+                </button>
+                
+                <span style={{fontWeight: 'bold'}}>Sayfa {currentPage} / {totalPages}</span>
+                
+                <button 
+                    onClick={() => handlePageChange(currentPage + 1)} 
+                    disabled={currentPage === totalPages}
+                    style={{opacity: currentPage === totalPages ? 0.5 : 1}}
+                >
+                    Sonraki &raquo;
+                </button>
+            </div>
+          )}
+
         </div>
 
         <div className="chatbot-section">
@@ -269,7 +295,6 @@ function App() {
         <div className="modal-overlay" onClick={closeModal}>
           <div className="modal-content" onClick={(e) => e.stopPropagation()}>
             <button className="close-button" onClick={closeModal}>&times;</button>
-            
             <div className="modal-image-container">
               {selectedMovie.poster_path ? (
                 <img src={selectedMovie.poster_path} alt={selectedMovie.title} />
@@ -277,7 +302,6 @@ function App() {
                  <div style={{height: '100%', backgroundColor: '#333', display: 'flex', alignItems:'center', justifyContent:'center'}}>Resim Yok</div>
               )}
             </div>
-
             <div className="modal-details">
               <h2>{selectedMovie.title}</h2>
               <div className="modal-info-row">
