@@ -5,7 +5,6 @@ from config import Config
 class TMDBService:
     @staticmethod
     def format_movie_data(movie):
-        """Ham film verisini frontend formatına çevirir."""
         return {
             'id': movie.get('id'),
             'title': movie.get('title'),
@@ -16,34 +15,37 @@ class TMDBService:
         }
 
     @staticmethod
-    def fetch_single_movie(title):
-        """İsme göre tekil film arar (AI sonuçları için)."""
-        search_url = f"{Config.TMDB_BASE_URL}/search/movie"
+    def fetch_movie_by_id(movie_id):
+        """Film ID'sine göre detay çeker (Topluluk favorileri için)."""
+        url = f"{Config.TMDB_BASE_URL}/movie/{movie_id}"
         params = {
             'api_key': Config.TMDB_API_KEY,
-            'language': 'tr-TR',
-            'query': title
+            'language': 'tr-TR'
         }
+        try:
+            response = requests.get(url, params=params)
+            if response.status_code == 200:
+                return TMDBService.format_movie_data(response.json())
+        except Exception as e:
+            print(f"ID ile film çekme hatası ({movie_id}): {e}")
+        return None
+
+    @staticmethod
+    def fetch_single_movie(title):
+        search_url = f"{Config.TMDB_BASE_URL}/search/movie"
+        params = {'api_key': Config.TMDB_API_KEY, 'language': 'tr-TR', 'query': title}
         try:
             response = requests.get(search_url, params=params)
             data = response.json()
             if data and data.get('results'):
                 return TMDBService.format_movie_data(data['results'][0])
-        except Exception as e:
-            print(f"Film arama hatası ({title}): {e}")
+        except Exception:
+            pass
         return None
 
     @staticmethod
     def get_movies(query=None, genre_id=None, page=1, filter_type='popular'):
-        """
-        Filtreye göre film listesi ve toplam sayfa sayısını çeker.
-        filter_type: 'popular' veya 'top_rated'
-        """
-        params = {
-            'api_key': Config.TMDB_API_KEY,
-            'language': 'tr-TR',
-            'page': page
-        }
+        params = {'api_key': Config.TMDB_API_KEY, 'language': 'tr-TR', 'page': page}
 
         if query:
             url = f"{Config.TMDB_BASE_URL}/search/movie"
@@ -63,20 +65,14 @@ class TMDBService:
         
         movies = data.get('results', [])
         total_pages = data.get('total_pages', 1)
-        
-        if total_pages > 500:
-            total_pages = 500
+        if total_pages > 500: total_pages = 500
 
         formatted_movies = [TMDBService.format_movie_data(m) for m in movies]
         
-        return {
-            "results": formatted_movies,
-            "total_pages": total_pages
-        }
+        return {"results": formatted_movies, "total_pages": total_pages}
 
     @staticmethod
     def get_genres():
-        """Tür listesini çeker."""
         url = f"{Config.TMDB_BASE_URL}/genre/movie/list"
         params = {'api_key': Config.TMDB_API_KEY, 'language': 'tr-TR'}
         response = requests.get(url, params=params)
@@ -84,7 +80,6 @@ class TMDBService:
 
     @staticmethod
     def fetch_movies_parallel(movie_titles):
-        """Film listesini paralel (threading) olarak çeker."""
         results = []
         if movie_titles:
             with concurrent.futures.ThreadPoolExecutor() as executor:
