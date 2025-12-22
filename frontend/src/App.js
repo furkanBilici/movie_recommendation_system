@@ -25,6 +25,7 @@ const StarRating = ({ rating, setRating, readOnly = false }) => {
 };
 
 function App() {
+  // --- 1. STATE TANIMLARI (HEPSİ BURADA OLMALI) ---
   const [movies, setMovies] = useState([]);
   const [genres, setGenres] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
@@ -53,7 +54,12 @@ function App() {
   const [chatLoading, setChatLoading] = useState(false);
   const messagesEndRef = useRef(null); 
 
-  // --- KULLANICI KONTROLÜ (GÜVENLİ HALE GETİRİLDİ) ---
+  // --- ADMIN PANEL STATE'LERİ ---
+  const [showAdminModal, setShowAdminModal] = useState(false);
+  const [adminStats, setAdminStats] = useState(null);
+  const [activeTab, setActiveTab] = useState('comments'); 
+
+  // --- KULLANICI KONTROLÜ ---
   useEffect(() => {
     const checkUser = async () => {
       try {
@@ -66,13 +72,13 @@ function App() {
             if(data.username) setUser(data);
         }
       } catch (error) {
-        console.warn("Backend'e ulaşılamadı, kullanıcı kontrolü yapılamadı.");
+        console.warn("Backend'e ulaşılamadı.");
       }
     };
     checkUser();
   }, []);
 
-  // Türleri çek (Güvenli)
+  // Türleri çek
   useEffect(() => {
     fetch('http://localhost:5000/api/genres')
       .then(res => {
@@ -80,10 +86,10 @@ function App() {
           return res.json();
       })
       .then(data => setGenres(data))
-      .catch(err => console.log("Türler yüklenemedi (Backend kapalı olabilir)"));
+      .catch(err => console.log("Türler yüklenemedi"));
   }, []);
 
-  // Filmleri çek (Güvenli)
+  // Filmleri çek
   const fetchMovies = async (query = '', genreId = '', page = 1, currentFilter = 'popular') => {
     setLoading(true);
     let url = 'http://localhost:5000/api/recommend';
@@ -101,7 +107,7 @@ function App() {
       }
     } catch (e) { 
       console.error("Film yükleme hatası:", e);
-      setMovies([]); // Hata olsa bile boş liste göster, patlama
+      setMovies([]); 
     } finally { 
       setLoading(false); 
     }
@@ -109,7 +115,37 @@ function App() {
 
   useEffect(() => { fetchMovies('', '', 1, 'popular'); }, []);
 
-  // --- AUTH İŞLEMLERİ (GÜVENLİ) ---
+  // --- ADMIN FONKSİYONLARI ---
+  const fetchAdminStats = async () => {
+    try {
+      const res = await fetch('http://localhost:5000/api/admin/stats', { credentials: 'include' });
+      if(res.ok) {
+        const data = await res.json();
+        setAdminStats(data);
+      }
+    } catch (e) { console.error("Admin veri hatası", e); }
+  };
+
+  const openAdminPanel = () => {
+    setShowAdminModal(true);
+    fetchAdminStats();
+  };
+
+  const handleAdminDeleteComment = async (id) => {
+    if(window.confirm("Bu yorumu kalıcı olarak silmek istiyor musun?")) {
+        await fetch(`http://localhost:5000/api/admin/delete_comment/${id}`, { method: 'DELETE', credentials: 'include' });
+        fetchAdminStats(); 
+    }
+  };
+
+  const handleAdminDeleteUser = async (id) => {
+    if(window.confirm("Kullanıcıyı silmek istiyor musun?")) {
+        await fetch(`http://localhost:5000/api/admin/delete_user/${id}`, { method: 'DELETE', credentials: 'include' });
+        fetchAdminStats();
+    }
+  };
+
+  // --- AUTH İŞLEMLERİ ---
   const handleAuth = async (e) => {
     e.preventDefault();
     const endpoint = authMode === 'login' ? '/api/login' : '/api/register';
@@ -128,8 +164,8 @@ function App() {
         const data = await response.json();
         if(response.ok) {
             if(authMode === 'login') {
-                setUser(data);
-                setShowAuthModal(false);
+                // Giriş başarılıysa sayfayı yenile
+                window.location.reload(); 
             } else {
                 alert("Kayıt başarılı! Şimdi giriş yapın.");
                 setAuthMode('login');
@@ -138,7 +174,7 @@ function App() {
             alert(data.error || "Bir hata oluştu");
         }
     } catch (error) {
-        alert("Sunucuya bağlanılamadı. Lütfen terminali kontrol et.");
+        alert("Sunucuya bağlanılamadı.");
     }
   };
 
@@ -146,12 +182,11 @@ function App() {
       try {
           await fetch('http://localhost:5000/api/logout', { method: 'POST', credentials: 'include' });
           setUser(null);
-          // Sayfayı yenile ve en başa dön
           window.location.href = '/';
       } catch (error) { console.error("Çıkış hatası", error); }
   };
 
-  // --- YORUM İŞLEMLERİ (GÜVENLİ) ---
+  // --- YORUM İŞLEMLERİ ---
   const loadComments = async (movieId) => {
       try {
           const res = await fetch(`http://localhost:5000/api/comments/${movieId}`);
@@ -164,7 +199,6 @@ function App() {
 
   const handlePostComment = async () => {
       if(!newComment.trim()) return;
-      
       try {
           const res = await fetch('http://localhost:5000/api/comments', {
               method: 'POST',
@@ -175,7 +209,6 @@ function App() {
 
           if (!res.ok) throw new Error("Yorum gönderilemedi");
 
-          // Puanlama
           if(userRating > 0) {
               await fetch('http://localhost:5000/api/rate', {
                 method: 'POST',
@@ -184,11 +217,10 @@ function App() {
                 credentials: 'include'
             });
           }
-
           setNewComment('');
           loadComments(selectedMovie.id);
       } catch (error) {
-          alert("Yorum gönderilirken hata oluştu. Giriş yaptığından emin ol.");
+          alert("Yorum gönderilirken hata oluştu.");
       }
   };
 
@@ -241,6 +273,12 @@ function App() {
         <div className="auth-buttons">
             {user ? (
                 <div style={{display:'flex', alignItems:'center', gap:'10px'}}>
+                    {/* ADMIN BUTONU */}
+                    {user.is_admin && (
+                      <button onClick={openAdminPanel} style={{background:'#444', border:'1px solid #666'}}>
+                        ⚙️ Yönetim
+                      </button>
+                    )}
                     <span>Hoş geldin, <b>{user.username}</b></span>
                     <button onClick={handleLogout} style={{background:'#333'}}>Çıkış</button>
                 </div>
@@ -250,7 +288,6 @@ function App() {
         </div>
       </header>
 
-      {/* --- ANA İÇERİK --- */}
       <div className="main-content">
         <div className="movie-section">
             <div className="controls">
@@ -283,14 +320,10 @@ function App() {
                         </div>
                     </div>
                 )) : (
-                    !loading && <p style={{textAlign:'center', width:'100%', marginTop:'20px'}}>
-                        Film bulunamadı veya sunucuya bağlanılamıyor. <br/> 
-                        <small>Lütfen 'python run.py' çalıştığından emin olun.</small>
-                    </p>
+                    !loading && <p style={{textAlign:'center', width:'100%', marginTop:'20px'}}>Film bulunamadı.</p>
                 )}
             </div>
 
-            {/* Pagination Controls */}
              {movies.length > 0 && totalPages > 1 && (
                 <div className="pagination-controls" style={{display: 'flex', justifyContent: 'center', gap: '20px', padding: '20px', alignItems: 'center'}}>
                     <button onClick={() => setCurrentPage(prev => Math.max(1, prev - 1))} disabled={currentPage === 1}>&laquo; Önceki</button>
@@ -300,10 +333,9 @@ function App() {
             )}
         </div>
         
-        {/* CHATBOT KISMI - App.js içindeki yeriyle değiştirin */}
+        {/* CHATBOT */}
         <div className="chatbot-section">
              <div className="chat-window">
-                {/* Yeni Başlık */}
                 <div className="chat-header">
                     <div className="bot-avatar-header">🤖</div>
                     <div style={{display:'flex', flexDirection:'column'}}>
@@ -313,21 +345,15 @@ function App() {
                 </div>
 
                 <div className="chat-messages">
-                    {/* Karşılama Mesajı */}
                     {chatMessages.length === 0 && (
                         <div style={{textAlign:'center', marginTop:'50px', opacity:0.6}}>
                             <div style={{fontSize:'3rem', marginBottom:'10px'}}>👋</div>
                             <p>Merhabalar! <br/> "Bana aksiyon filmleri öner" diyebilirsin.</p>
                         </div>
                     )}
-
                     {chatMessages.map((msg, i) => (
-                        <div key={i} className={`chat-message ${msg.sender}`}>
-                            {msg.text}
-                        </div>
+                        <div key={i} className={`chat-message ${msg.sender}`}>{msg.text}</div>
                     ))}
-
-                    {/* Yeni Animasyonlu Yazıyor Göstergesi */}
                     {chatLoading && (
                         <div className="typing-indicator">
                             <div className="typing-dot"></div>
@@ -339,30 +365,31 @@ function App() {
                 </div>
 
                 <form onSubmit={handleChatSubmit} className="chat-input-form">
-                    <input 
-                        value={chatInput} 
-                        onChange={e=>setChatInput(e.target.value)} 
-                        placeholder="Bir şeyler yaz..." 
-                        disabled={chatLoading}
-                    />
-                    <button type="submit" disabled={chatLoading}>
-                        {chatLoading ? '⏳' : '➤'}
-                    </button>
+                    <input value={chatInput} onChange={e=>setChatInput(e.target.value)} placeholder="Bir şeyler yaz..." disabled={chatLoading}/>
+                    <button type="submit" disabled={chatLoading}>{chatLoading ? '⏳' : '➤'}</button>
                 </form>
              </div>
         </div>
       </div>
 
-      {/* --- AUTH MODAL (GÜNCELLENDİ: auth-overlay eklendi) --- */}
+      {/* --- AUTH MODAL --- */}
       {showAuthModal && (
-          // BURAYA DİKKAT: 'auth-overlay' sınıfını ekledik 👇
           <div className="modal-overlay auth-overlay" onClick={()=>setShowAuthModal(false)}>
               <div className="modal-content auth-modal" onClick={e=>e.stopPropagation()} style={{maxWidth:'400px', flexDirection:'column', padding:'30px', maxHeight:'90vh'}}>
-                  {/* ... (içerik aynı kalacak) ... */}
                   <h2 style={{color:'white'}}>{authMode === 'login' ? 'Giriş Yap' : 'Kayıt Ol'}</h2>
                   <form onSubmit={handleAuth} style={{display:'flex', flexDirection:'column', gap:'15px', width:'100%'}}>
                       <input name="username" placeholder="Kullanıcı Adı" required style={{padding:'12px', borderRadius:'5px', border:'1px solid #444', background:'#222', color:'white'}}/>
-                      {authMode === 'register' && <input name="email" type="email" placeholder="E-posta" required style={{padding:'12px', borderRadius:'5px', border:'1px solid #444', background:'#222', color:'white'}}/>}
+                      {authMode === 'register' && (
+                        <input 
+                            name="email" 
+                            type="email" 
+                            placeholder="E-posta (Örn: isim@ornek.com)" 
+                            required 
+                            pattern="[^@\s]+@[^@\s]+\.[^@\s]+"
+                            title="Lütfen geçerli bir e-posta adresi girin"
+                            style={{padding:'12px', borderRadius:'5px', border:'1px solid #444', background:'#222', color:'white'}}
+                        />
+                      )}
                       <input name="password" type="password" placeholder="Şifre" required style={{padding:'12px', borderRadius:'5px', border:'1px solid #444', background:'#222', color:'white'}}/>
                       <button type="submit" style={{padding:'12px', background:'#e50914', color:'white', border:'none', borderRadius:'5px', fontWeight:'bold', cursor:'pointer'}}>{authMode === 'login' ? 'Giriş' : 'Kayıt Ol'}</button>
                   </form>
@@ -371,6 +398,68 @@ function App() {
                   </p>
               </div>
           </div>
+      )}
+
+      {/* --- ADMIN MODAL --- */}
+      {showAdminModal && adminStats && (
+        <div className="modal-overlay" onClick={()=>setShowAdminModal(false)}>
+          <div className="modal-content" onClick={e=>e.stopPropagation()} style={{maxWidth:'800px', width:'90%', maxHeight:'85vh'}}>
+            <button className="close-button" onClick={()=>setShowAdminModal(false)}>&times;</button>
+            
+            <h2 style={{borderBottom:'1px solid #444', paddingBottom:'10px', marginBottom:'20px'}}>⚙️ Yönetici Paneli</h2>
+            
+            <div className="admin-dashboard">
+              <div className="stat-cards">
+                <div className="stat-card">
+                  <h3>Toplam Üye</h3>
+                  <div className="count">{adminStats.user_count}</div>
+                </div>
+                <div className="stat-card">
+                  <h3>Toplam Yorum</h3>
+                  <div className="count">{adminStats.comment_count}</div>
+                </div>
+              </div>
+
+              {/* Sekmeler - Class Eklendi */}
+            <div className="admin-tabs">
+                <button onClick={()=>setActiveTab('comments')} style={{background: activeTab==='comments'?'#e50914':'#333'}}>Son Yorumlar</button>
+                <button onClick={()=>setActiveTab('users')} style={{background: activeTab==='users'?'#e50914':'#333'}}>Üyeler</button>
+            </div>
+
+
+              <div className="admin-list">
+                {activeTab === 'comments' && (
+                  <div>
+                    {adminStats.recent_comments.map(c => (
+                      <div key={c.id} className="admin-list-item">
+                        <div style={{flex:1}}>
+                          <strong style={{color:'#e50914'}}>{c.author}</strong> <small>({c.timestamp})</small>
+                          <p style={{margin:'5px 0', color:'#ccc', fontSize:'0.85rem'}}>{c.body}</p>
+                        </div>
+                        <button className="admin-btn-delete" onClick={()=>handleAdminDeleteComment(c.id)}>Sil</button>
+                      </div>
+                    ))}
+                  </div>
+                )}
+                {activeTab === 'users' && (
+                  <div>
+                    {adminStats.all_users.map(u => (
+                      <div key={u.id} className="admin-list-item">
+                        <div>
+                           <strong>{u.username}</strong> <br/>
+                           <small style={{color:'#888'}}>{u.email}</small>
+                        </div>
+                        {u.username !== user.username && (
+                           <button className="admin-btn-delete" onClick={()=>handleAdminDeleteUser(u.id)}>Üyeyi Sil</button>
+                        )}
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
       )}
 
       {/* --- FİLM DETAY MODAL --- */}
@@ -389,7 +478,6 @@ function App() {
               
               <div className="comments-section">
                   <h3 style={{color:'white'}}>Topluluk Yorumları</h3>
-                  
                   {user ? (
                       <div className="add-comment">
                           <textarea 
@@ -412,29 +500,19 @@ function App() {
                       </p>
                   )}
 
-                 <div className="comments-list" style={{marginTop:'20px', maxHeight:'300px', overflowY:'auto'}}>
+                  <div className="comments-list" style={{marginTop:'20px', maxHeight:'300px', overflowY:'auto'}}>
                       {comments.length === 0 && <p style={{color:'#888'}}>Henüz yorum yok. İlk yorumu sen yap!</p>}
                       {comments.map(c => (
                           <div key={c.id} className="comment-item" style={{background:'#222', padding:'15px', marginBottom:'10px', borderRadius:'8px', border:'1px solid #333'}}>
-                              
-                              {/* --- YORUM BAŞLIĞI GÜNCELLENDİ --- */}
                               <div style={{display:'flex', justifyContent:'space-between', marginBottom:'5px', alignItems:'center'}}>
                                   <div style={{display:'flex', alignItems:'center'}}>
                                       <strong style={{color:'#e50914', marginRight:'5px'}}>{c.author}</strong>
-                                      
-                                      {/* Eğer kullanıcı puan verdiyse yıldızları göster */}
                                       {c.user_score > 0 && (
-                                          <span className="comment-stars" title={`${c.user_score} Puan`}>
-                                              {/* Dolu Yıldız (★) Tek bir tane koyup yanına puan yazabiliriz veya döngü yapabiliriz. 
-                                                  Sadelik için: ★ 8/10 formatı yapalım */}
-                                              ★ {c.user_score}/10
-                                          </span>
+                                          <span className="comment-stars" title={`${c.user_score} Puan`}>★ {c.user_score}/10</span>
                                       )}
                                   </div>
                                   <span style={{fontSize:'0.8rem', color:'#888'}}>{c.timestamp}</span>
                               </div>
-                              {/* ---------------------------------- */}
-
                               <p style={{color:'#ddd', margin:'0'}}>{c.body}</p>
                               {user && user.id === c.user_id && (
                                   <button onClick={()=>handleDeleteComment(c.id)} style={{fontSize:'0.7rem', marginTop:'10px', padding:'4px 8px', background:'#333', color:'#e50914', border:'none', cursor:'pointer', borderRadius:'4px'}}>Sil</button>
@@ -443,7 +521,6 @@ function App() {
                       ))}
                   </div>
               </div>
-
             </div>
           </div>
         </div>

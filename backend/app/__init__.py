@@ -10,8 +10,6 @@ login = LoginManager()
 def create_app():
     app = Flask(__name__)
     app.config.from_object(Config)
-    
-    # BU SATIR ÇOK ÖNEMLİ! supports_credentials=True olmazsa "Failed to fetch" hatası alırsın.
     CORS(app, supports_credentials=True, resources={r"/api/*": {"origins": "http://localhost:3000"}})
 
     db.init_app(app)

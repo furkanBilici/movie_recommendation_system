@@ -553,4 +553,119 @@ button:hover {
   font-size: 0.9rem;
   margin-left: 8px;
   letter-spacing: 2px;
+}/* --- ADMIN PANEL (GÜNCELLENMİŞ & ORANTILI) --- */
+
+/* Admin içeriğinin kapsayıcısı */
+.admin-dashboard {
+  display: flex;
+  flex-direction: column;
+  gap: 20px;
+  height: 100%;       /* Modalı doldur */
+  overflow: hidden;   /* Dışarı taşmayı engelle */
+}
+
+/* İstatistik Kartları */
+.stat-cards {
+  display: flex;
+  gap: 15px;
+  flex-wrap: wrap;    /* Ekran küçülürse alt satıra geçsin */
+  flex-shrink: 0;     /* Kartlar sıkışıp küçülmesin */
+}
+
+.stat-card {
+  flex: 1;            /* Eşit genişlikte yayılsınlar */
+  min-width: 140px;   /* Çok küçülmesini engelle */
+  background: linear-gradient(145deg, #2a2a2a, #333);
+  padding: 20px;
+  border-radius: 12px;
+  text-align: center;
+  border: 1px solid #444;
+  box-shadow: 0 4px 6px rgba(0,0,0,0.3);
+}
+
+.stat-card h3 {
+  margin: 0 0 10px 0;
+  color: #bbb;
+  font-size: 0.9rem;
+  text-transform: uppercase;
+  letter-spacing: 1px;
+}
+
+.stat-card .count {
+  font-size: 2.5rem;
+  font-weight: 800;
+  color: #e50914;
+  line-height: 1;
+}
+
+/* Sekme Butonları Alanı */
+.admin-tabs {
+  display: flex;
+  gap: 10px;
+  flex-shrink: 0;
+}
+
+.admin-tabs button {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  cursor: pointer;
+  font-weight: bold;
+  border-radius: 6px;
+  transition: all 0.2s;
+  color: white;
+}
+
+/* Liste Alanı (En Önemli Kısım) */
+.admin-list {
+  flex: 1;                /* Kalan TÜM boşluğu burası kaplasın */
+  overflow-y: auto;       /* Sadece bu alan scroll olsun */
+  background: #1f1f1f;
+  border: 1px solid #333;
+  border-radius: 8px;
+  padding: 5px;
+}
+
+/* Scrollbar Güzelleştirme */
+.admin-list::-webkit-scrollbar {
+  width: 8px;
+}
+.admin-list::-webkit-scrollbar-thumb {
+  background-color: #555;
+  border-radius: 4px;
+}
+
+/* Liste Elemanları */
+.admin-list-item {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 15px;
+  border-bottom: 1px solid #333;
+  background-color: #252525;
+  margin-bottom: 5px;
+  border-radius: 6px;
+  transition: background 0.2s;
+}
+
+.admin-list-item:hover {
+  background-color: #2e2e2e;
+}
+
+.admin-btn-delete {
+  background: rgba(229, 9, 20, 0.2);
+  color: #e50914;
+  border: 1px solid #e50914;
+  padding: 6px 12px;
+  border-radius: 4px;
+  cursor: pointer;
+  font-size: 0.8rem;
+  font-weight: bold;
+  transition: all 0.2s;
+  white-space: nowrap; /* Buton yazısı kırılmasın */
+}
+
+.admin-btn-delete:hover {
+  background: #e50914;
+  color: white;
 }
