@@ -114,6 +114,10 @@ function App() {
   };
 
   useEffect(() => { fetchMovies('', '', 1, 'popular'); }, []);
+  useEffect(() => {
+      // Sayfa numarası (currentPage) değişince burası çalışır
+      fetchMovies(searchTerm, selectedGenre, currentPage, filterType);
+  }, [currentPage]);
 
   // --- ADMIN FONKSİYONLARI ---
   const fetchAdminStats = async () => {
