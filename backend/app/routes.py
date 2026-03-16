@@ -71,7 +71,7 @@ def get_current_user():
         return jsonify({
             'username': current_user.username, 
             'id': current_user.id,
-            'is_admin': current_user.is_admin  # <--- BU SATIR ÇOK ÖNEMLİ! YOKSA BUTON ÇIKMAZ.
+            'is_admin': current_user.is_admin 
         })
     return jsonify({'username': None})
 
@@ -106,27 +106,67 @@ def get_comments(movie_id):
     return jsonify(comments)
 
 @main.route('/api/comments', methods=['POST'])
-@login_required
-def add_comment():
+@main.route('/api/comments/<int:movie_id>', methods=['POST']) # Flutter'ın attığı URL'yi de kabul et
+def add_comment(movie_id=None):
     data = request.json
-    comment = CommunityService.add_comment(current_user.id, data['movie_id'], data['content'])
+    
+    # 1. Verileri topla (İster web'den gelsin ister mobilden)
+    actual_movie_id = movie_id or data.get('movie_id')
+    content = data.get('body') or data.get('content') # Flutter 'body' yolluyor, Web 'content'
+    mobile_username = data.get('username')
+
+    # 2. Kullanıcıyı bul
+    user = None
+    if mobile_username:
+        user = User.query.filter_by(username=mobile_username).first() # Mobilden geldiyse
+    elif current_user.is_authenticated:
+        user = current_user # Web'den geldiyse
+
+    # 3. Güvenlik Kontrolü (@login_required sildiğimiz için manuel yapıyoruz)
+    if not user:
+        return jsonify({'error': 'Yorum yapmak için giriş yapmalısınız'}), 401
+
+    # 4. Senin mevcut CommunityService yapını bozmadan kaydediyoruz
+    comment = CommunityService.add_comment(user.id, actual_movie_id, content)
     return jsonify(comment)
 
 @main.route('/api/comments/<int:comment_id>', methods=['DELETE'])
-@login_required
 def delete_comment(comment_id):
-    success = CommunityService.delete_comment(comment_id, current_user.id)
+    # Mobilden DELETE isteğinde JSON gövdesi gelebilir
+    data = request.get_json(silent=True) or {}
+    mobile_username = data.get('username')
+    
+    user = None
+    if mobile_username:
+        user = User.query.filter_by(username=mobile_username).first()
+    elif current_user.is_authenticated:
+        user = current_user
+
+    if not user:
+        return jsonify({'error': 'Yetkisiz işlem'}), 401
+
+    success = CommunityService.delete_comment(comment_id, user.id)
     if success:
         return jsonify({'message': 'Yorum silindi'})
-    return jsonify({'error': 'Yetkisiz işlem'}), 403
+    return jsonify({'error': 'Yetkisiz işlem veya yorum bulunamadı'}), 403
+
 
 @main.route('/api/rate', methods=['POST'])
-@login_required
 def rate_movie():
     data = request.json
-    CommunityService.rate_movie(current_user.id, data['movie_id'], data['score'])
-    return jsonify({'message': 'Puan kaydedildi'})
+    mobile_username = data.get('username')
+    
+    user = None
+    if mobile_username:
+        user = User.query.filter_by(username=mobile_username).first()
+    elif current_user.is_authenticated:
+        user = current_user
 
+    if not user:
+        return jsonify({'error': 'Puan vermek için giriş yapmalısınız'}), 401
+
+    CommunityService.rate_movie(user.id, data['movie_id'], data['score'])
+    return jsonify({'message': 'Puan kaydedildi'})
 @main.route('/api/genres', methods=['GET'])
 def get_genres():
     return jsonify(TMDBService.get_genres())
@@ -138,7 +178,6 @@ def chatbot_recommendation():
     recommended_movies = TMDBService.fetch_movies_parallel(movie_titles)
     return jsonify({"recommendations": recommended_movies, "message": bot_message})# --- ADMIN ROUTES ---
 
-# 1. İstatistikleri Getir
 @main.route('/api/admin/stats', methods=['GET'])
 @login_required
 def admin_stats():
@@ -147,7 +186,6 @@ def admin_stats():
     
     user_count = User.query.count()
     comment_count = Comment.query.count()
-    # Yorumları en yeniden eskiye çek
     comments = Comment.query.order_by(Comment.timestamp.desc()).limit(50).all()
     
     return jsonify({
@@ -157,7 +195,6 @@ def admin_stats():
         'all_users': [{'id': u.id, 'username': u.username, 'email': u.email} for u in User.query.all()]
     })
 
-# 2. Herhangi Bir Yorumu Sil (Admin Yetkisiyle)
 @main.route('/api/admin/delete_comment/<int:comment_id>', methods=['DELETE'])
 @login_required
 def admin_delete_comment(comment_id):
@@ -187,3 +224,50 @@ def admin_delete_user(user_id):
         db.session.commit()
         return jsonify({'message': 'Kullanıcı silindi.'})
     return jsonify({'error': 'Kullanıcı bulunamadı'}), 404
+# --- KULLANICI PROFİLİ İŞLEMLERİ ---
+
+@main.route('/api/profile/comments', methods=['POST'])
+def get_user_comments():
+    # Mobilden çerez gelmediği için POST ile username alıyoruz
+    data = request.json
+    user = User.query.filter_by(username=data.get('username')).first()
+    
+    if not user:
+        return jsonify({'error': 'Kullanıcı bulunamadı'}), 404
+        
+    comments = Comment.query.filter_by(user_id=user.id).order_by(Comment.timestamp.desc()).all()
+    
+    result = []
+    for c in comments:
+        result.append({
+            'id': c.id,
+            'movie_id': c.movie_id,
+            'body': c.body,
+            # Eğer modelinde timestamp string değilse hata vermesin diye:
+            'timestamp': str(c.timestamp)[:16] if c.timestamp else 'Bilinmeyen Tarih'
+        })
+    return jsonify(result)
+
+@main.route('/api/profile/update', methods=['PUT'])
+def update_profile():
+    data = request.json
+    user = User.query.filter_by(username=data.get('current_username')).first()
+    
+    if not user:
+        return jsonify({'error': 'Kullanıcı bulunamadı'}), 404
+        
+    new_username = data.get('new_username', '').strip()
+    new_password = data.get('new_password', '').strip()
+    
+    # Kullanıcı adı değişmişse ve boş değilse
+    if new_username and new_username != user.username:
+        if User.query.filter_by(username=new_username).first():
+            return jsonify({'error': 'Bu kullanıcı adı zaten alınmış.'}), 400
+        user.username = new_username
+        
+    # Şifre girilmişse güncelle
+    if len(new_password) > 0:
+        user.set_password(new_password)
+        
+    db.session.commit()
+    return jsonify({'message': 'Profil başarıyla güncellendi.', 'new_username': user.username})
