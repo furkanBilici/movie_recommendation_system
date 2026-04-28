@@ -51,6 +51,7 @@ def register():
     return jsonify({'message': 'Kayıt başarılı! Giriş yapabilirsiniz.'})
 
 @main.route('/api/login', methods=['POST'])
+@main.route('/api/login', methods=['POST'])
 def login():
     data = request.json
     user = User.query.filter_by(username=data['username']).first()
@@ -58,7 +59,7 @@ def login():
         return jsonify({'error': 'Geçersiz kullanıcı adı veya şifre'}), 401
     
     login_user(user, remember=True)
-    return jsonify({'username': user.username, 'id': user.id})
+    return jsonify({'username': user.username, 'id': user.id, 'is_admin': user.is_admin})
 
 @main.route('/api/logout', methods=['POST'])
 def logout():
@@ -177,11 +178,14 @@ def chatbot_recommendation():
     movie_titles, bot_message = AIService.get_recommendations(user_message)
     recommended_movies = TMDBService.fetch_movies_parallel(movie_titles)
     return jsonify({"recommendations": recommended_movies, "message": bot_message})# --- ADMIN ROUTES ---
+# --- ADMIN ROUTES (MOBİL UYUMLU) ---
 
 @main.route('/api/admin/stats', methods=['GET'])
-@login_required
 def admin_stats():
-    if not current_user.is_admin:
+    username = request.args.get('username')
+    user = User.query.filter_by(username=username).first() if username else current_user
+    
+    if not user or not getattr(user, 'is_admin', False):
         return jsonify({'error': 'Yetkisiz erişim'}), 403
     
     user_count = User.query.count()
@@ -191,14 +195,17 @@ def admin_stats():
     return jsonify({
         'user_count': user_count,
         'comment_count': comment_count,
-        'recent_comments': [c.to_dict() for c in comments],
+        'recent_comments': [{'id': c.id, 'body': c.body, 'movie_id': c.movie_id, 'author': c.user.username} for c in comments],
         'all_users': [{'id': u.id, 'username': u.username, 'email': u.email} for u in User.query.all()]
     })
 
 @main.route('/api/admin/delete_comment/<int:comment_id>', methods=['DELETE'])
-@login_required
 def admin_delete_comment(comment_id):
-    if not current_user.is_admin:
+    data = request.get_json(silent=True) or {}
+    username = data.get('username')
+    user = User.query.filter_by(username=username).first() if username else current_user
+    
+    if not user or not getattr(user, 'is_admin', False):
         return jsonify({'error': 'Yetkisiz erişim'}), 403
         
     comment = Comment.query.get(comment_id)
@@ -208,19 +215,21 @@ def admin_delete_comment(comment_id):
         return jsonify({'message': 'Yorum yönetici tarafından silindi.'})
     return jsonify({'error': 'Yorum bulunamadı'}), 404
 
-
 @main.route('/api/admin/delete_user/<int:user_id>', methods=['DELETE'])
-@login_required
 def admin_delete_user(user_id):
-    if not current_user.is_admin:
+    data = request.get_json(silent=True) or {}
+    username = data.get('username')
+    user = User.query.filter_by(username=username).first() if username else current_user
+    
+    if not user or not getattr(user, 'is_admin', False):
         return jsonify({'error': 'Yetkisiz erişim'}), 403
     
-    if user_id == current_user.id:
+    if user_id == user.id:
         return jsonify({'error': 'Kendinizi silemezsiniz!'}), 400
 
-    user = User.query.get(user_id)
-    if user:
-        db.session.delete(user)
+    user_to_delete = User.query.get(user_id)
+    if user_to_delete:
+        db.session.delete(user_to_delete)
         db.session.commit()
         return jsonify({'message': 'Kullanıcı silindi.'})
     return jsonify({'error': 'Kullanıcı bulunamadı'}), 404
