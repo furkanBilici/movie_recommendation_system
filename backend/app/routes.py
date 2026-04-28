@@ -188,16 +188,42 @@ def admin_stats():
     if not user or not getattr(user, 'is_admin', False):
         return jsonify({'error': 'Yetkisiz erişim'}), 403
     
-    user_count = User.query.count()
-    comment_count = Comment.query.count()
-    comments = Comment.query.order_by(Comment.timestamp.desc()).limit(50).all()
-    
-    return jsonify({
-        'user_count': user_count,
-        'comment_count': comment_count,
-        'recent_comments': [{'id': c.id, 'body': c.body, 'movie_id': c.movie_id, 'author': c.user.username} for c in comments],
-        'all_users': [{'id': u.id, 'username': u.username, 'email': u.email} for u in User.query.all()]
-    })
+    try:
+        user_count = User.query.count()
+        comment_count = Comment.query.count()
+        comments = Comment.query.order_by(Comment.timestamp.desc()).limit(50).all()
+        
+        # YORUMLARI ÇEKERKEN ÇÖKMEYİ ENGELLEYEN GÜVENLİ YAPI
+        recent_comments = []
+        for c in comments:
+            author_name = "Bilinmeyen Kullanıcı"
+            
+            # Eğer yorumun bir yazarı varsa adını al, yoksa çökmek yerine "Bilinmeyen Kullanıcı" yaz
+            if hasattr(c, 'user') and c.user:
+                author_name = c.user.username
+            elif hasattr(c, 'author') and c.author:
+                author_name = c.author.username
+                
+            recent_comments.append({
+                'id': c.id, 
+                'body': c.body, 
+                'movie_id': c.movie_id, 
+                'author': author_name
+            })
+        
+        all_users = [{'id': u.id, 'username': u.username, 'email': u.email} for u in User.query.all()]
+        
+        return jsonify({
+            'user_count': user_count,
+            'comment_count': comment_count,
+            'recent_comments': recent_comments,
+            'all_users': all_users
+        })
+        
+    except Exception as e:
+        # EĞER HALA ÇÖKÜYORSA NEDENİNİ TERMİNALE YAZDIR:
+        print("ADMIN STATS HATASI:", str(e))
+        return jsonify({'error': f'Sunucu hatası: {str(e)}'}), 500
 
 @main.route('/api/admin/delete_comment/<int:comment_id>', methods=['DELETE'])
 def admin_delete_comment(comment_id):
